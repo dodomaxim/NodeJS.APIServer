@@ -1,0 +1,19 @@
+{
+  "name": "Hydra",
+  "version": "1.0.0",
+  "description": "Secure NodeJS server",
+  "author": "Fjell Maxim <dodo.maxim@gmail.com>",
+  "test": "node app.js",
+  "start": "node app.js",
+  "dependencies": {
+    "bluebird": "^3.0.0",
+    "body-parser": "^1.14.1",
+    "express": "^4.13.3",
+    "jsonwebtoken": "^5.4.1",
+    "lodash": "^3.10.1",
+    "morgan": "^1.6.1",
+    "winston": "^1.1.1"
+  },
+  "devDependencies": {},
+  "private": true
+}

@@ -8,6 +8,15 @@
 config = require('./config.js');
 
 /**
+ * Make Security global
+ * 
+ * @type {Object}
+ *
+ * @public
+ */
+Security = require(config.path + 'controllers/SecurityController');
+
+/**
  * Application starting point
  * 
  * @param  {Object} libs Libraries used by this module
@@ -68,7 +77,7 @@ config = require('./config.js');
 
 				var options = [route.url].concat(route.actions);
 				internals.app[route.method].apply(internals.app, options);
-				libs.console.log('Route enabled:', route.method, route.url);
+				libs.console.info('Route enabled:', route.method, route.url);
 			},
 
 			/**
@@ -99,9 +108,11 @@ config = require('./config.js');
 		}
 	};
 
-	internals.setup.application(internals.app);
-	internals.setup.routes(libs.Security.routes);
-	internals.setup.errorHandlers();
+	libs.Database.connect(config.database.url)
+		.then(internals.setup.application.bind(this, internals.app))
+		.then(internals.setup.routes.bind(this, Security.routes))
+		.then(internals.setup.errorHandlers);
+
 	libs.console.info('Application started on port', config.port);
 
 })({
@@ -109,6 +120,6 @@ config = require('./config.js');
 	_: 				require('underscore'),
 	bodyParser: 	require('body-parser'),
 	console: 		require(config.path + 'utilities/Console'),
-	Security: 		require(config.path + 'controllers/SecurityController'),
+	Database: 		require(config.path + 'utilities/Database'),
 	ErrorHandler: 	require(config.path + 'utilities/ErrorHandler')
 });

@@ -20,6 +20,43 @@ module.exports = (function (libs) {
 	var internals = {
 
 		/**
+		 * Returns the scope for sending a response
+		 * This utility is public as it can be useful to other modules
+		 * 
+		 * @param  {Object} request  Request
+		 * @param  {Object} response Response
+		 * @param  {Object} next     Function
+		 *
+		 * @return {Object}
+		 *
+		 * @public
+		 */
+		scope: function (request, response, next) {
+
+			return {
+				request: request,
+				response: response,
+				next: next
+			};
+		},
+
+		/**
+		 * Send a server response
+		 * This utility is public as it can be useful to other modules
+		 * Current scope is an object with a request, response & next properties (via .bind)
+		 * 
+		 * @param  {Object} data JSON object to be returned as response
+		 *
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		send: function (data) {
+
+			this.response.status(200).json(data);
+		},
+
+		/**
 		 * Validate utilities
 		 *
 		 * @type {Object}
@@ -78,7 +115,29 @@ module.exports = (function (libs) {
 		},
 
 		/**
+		 * Confirm the from the request token is present & enabled in the database
+		 * Current scope is an object with a request, response & next properties (via .bind)
+		 *
+		 * @param  {Object}   token     Decoded token from the request
+		 * @param  {Object}   result    Database response with token record
+		 *
+		 * @return {void}
+		 *
+		 * @private
+		 */
+		confirmToken: function (token, result) {
+
+			if (result && result.token === this.request.tokenString) {
+				this.request.token = token;
+				this.next();
+			} else {
+				this.next({name: 'JsonWebTokenError'})
+			}
+		},
+
+		/**
 		 * Success handler for token verification
+		 * Current scope is an object with a request, response & next properties (via .bind)
 		 *
 		 * @param  {Object}   request     Request
 		 * @param  {Object}   response    Response
@@ -89,14 +148,22 @@ module.exports = (function (libs) {
 		 *
 		 * @private
 		 */
-		onTokenDecodeSuccess: function (request, response, next, token) {
+		onTokenDecodeSuccess: function (token) {
 
-			request.token = token;
-			next();
+			var filters = {
+				scope:  token.scope,
+				user: 	token.id,
+				status: 'enabled'
+			};
+
+			libs.Database.list('tokens', filters)
+				.then(libs._.first)
+				.then(internals.confirmToken.bind(this, token));
 		},
 
 		/**
 		 * Error handler for token verification
+		 * Current scope is an object with a request, response & next properties (via .bind)
 		 *
 		 * @param  {Object}   request     Request
 		 * @param  {Object}   response    Response
@@ -107,14 +174,15 @@ module.exports = (function (libs) {
 		 *
 		 * @private
 		 */
-		onTokenDecodeError: function (request, response, next, error) {
+		onTokenDecodeError: function (error) {
 
-			next(error);
+			this.next(error);
 		},
 
 		/**
 		 * Middleware function that confirms or denies access
-		 * based on token scope and specified required permissions
+		 * based on token scope and specified required permissions.
+		 * Current scope is an object with a 'permissions' property (via .bind)
 		 *
 		 * @param  {Array}    permissions List of permissions
 		 * @param  {Object}   request     Request
@@ -125,9 +193,9 @@ module.exports = (function (libs) {
 		 *
 		 * @private
 		 */
-		processPermissions: function (permissions, request, response, next) {
+		processPermissions: function (request, response, next) {
 
-			if (libs._.intersection(permissions, request.token.scope).length === permissions.length) {
+			if (libs._.intersection(this.permissions, request.token.scope).length === this.permissions.length) {
 				next();
 			} else {
 				next({name: 'TokenPermissionError'});
@@ -157,11 +225,23 @@ module.exports = (function (libs) {
 		 */
 		access: function (request, response, next) {
 
+			var log = {
+				type: 		'request',
+				time: 		libs.moment().format(),
+				user: 		request.token.id,
+				ip: 		request.get('X-Forwarded-For'),
+				token: 		request.get('authorization'),
+				method: 	request.method,
+				endpoint: 	request.originalUrl,
+				payload: 	JSON.stringify(request.body)
+			};
+
+			libs.Database.upsert('logs', log);
 			libs.console.log(
-				libs.moment().format(), request.token.id,
-				'( ip:', request.get('X-Forwarded-For'), ')',
-				request.method, request.originalUrl,
-				'with payload: ', JSON.stringify(request.body)
+				log.time, log.user,
+				'(ip: ' + log.ip + ')',
+				log.method, log.endpoint,
+				'with payload: ', log.payload
 			);
 			next();
 		},
@@ -201,11 +281,12 @@ module.exports = (function (libs) {
 		 */
 		authenticate: function (request, response, next) {
 
+			var scope = internals.scope(request, response, next);
 			if (internals.validate.tokenFormat.test(request.get('authorization'))) {
-				var token = libs._.last(request.get('authorization').split(' ')) || '';
-				internals.validate.signature(token, config.security.secret)
-					.then(internals.onTokenDecodeSuccess.bind(this, request, response, next))
-					.catch(internals.onTokenDecodeError.bind(this, request, response, next));
+				request.tokenString = libs._.last(request.get('authorization').split(' ')) || '';
+				internals.validate.signature(request.tokenString, config.security.secret)
+					.then(internals.onTokenDecodeSuccess.bind(scope))
+					.catch(internals.onTokenDecodeError.bind(scope));
 			} else {
 				next({name: 'InvalidPayloadError'});
 			}
@@ -224,20 +305,32 @@ module.exports = (function (libs) {
 		 */
 		generate: function (request, response, next) {
 
+			var scope = internals.scope(request, response, next);
 			if (internals.validate.token(request.body)) {
 				var options = {
 					algorithm: 'HS256',
 					expiresIn: request.body.validity || '24 hours'
 				};
 				var token = libs.jwt.sign(request.body, config.security.secret, options);
-				response.status(200).json({token: token});
+				libs.Database.upsert('tokens', {
+					time: 		libs.moment().format(),
+					token: 		token,
+					user: 		request.body.id,
+					validity: 	options.expiresIn,
+					scope: 		request.body.scope,
+					status: 	'enabled',
+					authority: 	request.token.id
+				}, {
+					user: request.body.id
+				});
+				internals.send.call(scope, {token: token});
 			} else {
 				next({name: 'InvalidPayloadError'});
 			}
 		},
 
 		/**
-		 * Generates an overall status response
+		 * Shows log entries for a user
 		 *
 		 * @param  {Object}   request  Request
 		 * @param  {Object}   response Response
@@ -247,15 +340,18 @@ module.exports = (function (libs) {
 		 *
 		 * @public
 		 */
-		status: function (request, response, next) {
+		logs: function (request, response, next) {
 
-			var apiStatus = {
-				status: 'Running on internal port ' + config.port
+			var scope = internals.scope(request, response, next);
+
+			var filters = {
+				user: request.params.user,
 			};
-
-			response
-				.status(200)
-				.json(apiStatus);
+			var sort = {
+				time: -1
+			};
+			libs.Database.list('logs', filters, sort)
+				.then(internals.send.bind(scope));
 		},
 
 		/**
@@ -270,7 +366,7 @@ module.exports = (function (libs) {
 		 */
 		require: function (permissions) {
 
-			return internals.processPermissions.bind(this, permissions);
+			return internals.processPermissions.bind({permissions: permissions});
 		}
 	};
 
@@ -298,17 +394,19 @@ module.exports = (function (libs) {
 		],
 		method: 'post'
 	}, {
-		url: '/status',
+		url: '/logs/:user',
 		actions: [
-			actions.require(['General.Status']),
-			actions.status
+			actions.require(['General.Logs']),
+			actions.logs
 		],
 		method: 'get'
 	}];
 
 	return {
 		routes: routes,
-		require: actions.require
+		require: actions.require,
+		respond: internals.send,
+		scope: internals.scope
 	};
 
 })({
@@ -317,4 +415,5 @@ module.exports = (function (libs) {
 	jwt: 		require('jsonwebtoken'),
 	Promise: 	require('bluebird/js/release/promise')(),
 	console: 	require(config.path + 'utilities/Console'),
+	Database: 	require(config.path + 'utilities/Database'),
 });

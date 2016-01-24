@@ -49,7 +49,7 @@ config = require('./config.js');
 			application: function () {
 
 				internals.app = libs.express();
-				internals.app.listen(config.port);
+				internals.app.listen(config.port, '127.0.0.1');
 				internals.app.disable('x-powered-by');
 				internals.app.disable('etag');
 				internals.app.use(libs.bodyParser.json());
@@ -68,7 +68,7 @@ config = require('./config.js');
 
 				var options = [route.url].concat(route.actions);
 				internals.app[route.method].apply(internals.app, options);
-				libs.console.log('debug', 'Route enabled:', route.method, route.url);
+				libs.console.log('Route enabled:', route.method, route.url);
 			},
 
 			/**
@@ -86,21 +86,6 @@ config = require('./config.js');
 			},
 
 			/**
-			 * Setup log levels and files for operations,
-			 * errors and access
-			 *
-			 * @return {void}
-			 *
-			 * @private
-			 */
-			loggers: function () {
-
-				internals.app.use(libs.morgan(config.logs.access.format, config.logs.access));
-				libs.console.add(libs.console.transports.File, config.logs.operations);
-				libs.console.level = 'debug';
-			},
-
-			/**
 			 * Setup error handling for routes
 			 *
 			 * @return {void}
@@ -115,17 +100,15 @@ config = require('./config.js');
 	};
 
 	internals.setup.application(internals.app);
-	internals.setup.loggers();
 	internals.setup.routes(libs.Security.routes);
 	internals.setup.errorHandlers();
-	libs.console.info('Application started');
+	libs.console.info('Application started on port', config.port);
 
 })({
-	express: require('express'),
-	_: require('lodash'),
-	console: require('winston'),
-	morgan: require('morgan'),
-	bodyParser: require('body-parser'),
-	Security: require(config.path + 'controllers/SecurityController'),
-	ErrorHandler: require(config.path + 'utilities/ErrorHandler')
+	express: 		require('express'),
+	_: 				require('underscore'),
+	bodyParser: 	require('body-parser'),
+	console: 		require(config.path + 'utilities/Console'),
+	Security: 		require(config.path + 'controllers/SecurityController'),
+	ErrorHandler: 	require(config.path + 'utilities/ErrorHandler')
 });

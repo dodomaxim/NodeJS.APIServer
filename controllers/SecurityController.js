@@ -19,17 +19,63 @@ module.exports = (function (libs) {
 	 */
 	var internals = {
 
-		contentSecurityPolicy: [
-			"default-src 'none'",
-			"script-src 'none'",
-			"object-src 'none'",
-			"img-src 'none'",
-			"media-src 'none'",
-			"frame-src 'none'",
-			"font-src 'none'",
-			"connect-src 'none'",
-			"style-src 'none'"
-		].join(';'),
+		/**
+		 * Validate utilities
+		 *
+		 * @type {Object}
+		 */
+		validate: {
+
+			/**
+			 * Token format
+			 *
+			 * @type {RegExp}
+			 */
+			tokenFormat: /^(Bearer )([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_-]+)$/,
+
+			/**
+			 * Verify a token's signature
+			 *
+			 * @type {Function}
+			 */
+			signature: libs.Promise.promisify(libs.jwt.verify),
+
+			/**
+			 * Verifies whether a token structure is valid
+			 *
+			 * @param  {Object} payload Decoded token object
+			 *
+			 * @return {Boolean}        Returns true if token is valid
+			 *
+			 * @private
+			 */
+			token: function (payload) {
+				
+				return libs._.isObject(payload) &&
+					payload.hasOwnProperty('id') &&
+					libs._.isString(payload.id) &&
+					payload.hasOwnProperty('scope') &&
+					libs._.isArray(payload.scope);
+			},
+
+			/**
+			 * Verifies whether a request body is valid
+			 *
+			 * @param  {Object} body JSON decoded request body
+			 *
+			 * @return {Boolean}     Returns true if payload is valid
+			 *
+			 * @private
+			 */
+			payload: function (body) {
+
+				try {
+					return libs._.isObject(body) || libs._.isEmpty(body);
+				} catch (error) {
+					return false;
+				}
+			}
+		},
 
 		/**
 		 * Success handler for token verification
@@ -86,24 +132,6 @@ module.exports = (function (libs) {
 			} else {
 				next({name: 'TokenPermissionError'});
 			}
-		},
-
-		/**
-		 * Validate whether the input for generating
-		 * a token is expected or incorrect
-		 * 
-		 * @param  {Object}  payload Object with id & scope [& validity]
-		 *
-		 * @return {Boolean}         Returns true if payload is valid
-		 *
-		 * @private
-		 */
-		validateTokenPayload: function (payload) {
-
-			return typeof payload === 'object' &&
-				payload.hasOwnProperty('id') &&
-				payload.hasOwnProperty('scope') &&
-				payload.scope.length >= 1;
 		}
 	};
 
@@ -117,8 +145,29 @@ module.exports = (function (libs) {
 	var actions = {
 
 		/**
-		 * Verifies token format: confirms whether it has
-		 * id & scope. Also adds some security headers
+		 * Logs all access to endpoints
+		 *
+		 * @param  {Object}   request  Request
+		 * @param  {Object}   response Response
+		 * @param  {Function} next     Next handler
+		 *
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		access: function (request, response, next) {
+
+			libs.console.log(
+				libs.moment().format(), request.token.id,
+				'( ip:', request.get('X-Forwarded-For'), ')',
+				request.method, request.originalUrl,
+				'with payload: ', JSON.stringify(request.body)
+			);
+			next();
+		},
+
+		/**
+		 * Verifies token & request body format.
 		 *
 		 * @param  {Object}   request  Request
 		 * @param  {Object}   response Response
@@ -130,14 +179,8 @@ module.exports = (function (libs) {
 		 */
 		secure: function (request, response, next) {
 
-			response.header('X-Frame-Options', 'Deny');
-			response.header('Content-Security-Policy', internals.contentSecurityPolicy);
-			response.header('X-XSS-Protection', '1; mode=block');
-			response.header('X-Content-Type-Options', 'nosniff');
-			if (request.token &&
-				request.token.id &&
-				request.token.scope &&
-				request.token.scope.length >= 1) {
+			if (internals.validate.token(request.token) &&
+				internals.validate.payload(request.body)) {
 				next();
 			} else {
 				next({name: 'InvalidPayloadError'});
@@ -158,15 +201,13 @@ module.exports = (function (libs) {
 		 */
 		authenticate: function (request, response, next) {
 
-			if (request.get('authorization') &&
-				request.get('authorization').indexOf('Bearer ') === 0) {
-				var verify = libs.Promise.promisify(libs.jwt.verify);
+			if (internals.validate.tokenFormat.test(request.get('authorization'))) {
 				var token = libs._.last(request.get('authorization').split(' ')) || '';
-				verify(token, config.security.secret)
+				internals.validate.signature(token, config.security.secret)
 					.then(internals.onTokenDecodeSuccess.bind(this, request, response, next))
 					.catch(internals.onTokenDecodeError.bind(this, request, response, next));
 			} else {
-				next({name:'DefaultError'});
+				next({name: 'InvalidPayloadError'});
 			}
 		},
 
@@ -183,21 +224,38 @@ module.exports = (function (libs) {
 		 */
 		generate: function (request, response, next) {
 
-			if (internals.validateTokenPayload(request.body)) {
+			if (internals.validate.token(request.body)) {
 				var options = {
 					algorithm: 'HS256',
 					expiresIn: request.body.validity || '24 hours'
 				};
 				var token = libs.jwt.sign(request.body, config.security.secret, options);
 				response.status(200).json({token: token});
-				libs.console.info(
-					request.token.id, 'generated a', options.expiresIn,
-					'valid token for', request.body.id,
-					'with:', request.body.scope.join(', ')
-				);
 			} else {
 				next({name: 'InvalidPayloadError'});
 			}
+		},
+
+		/**
+		 * Generates an overall status response
+		 *
+		 * @param  {Object}   request  Request
+		 * @param  {Object}   response Response
+		 * @param  {Function} next     Next handler
+		 *
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		status: function (request, response, next) {
+
+			var apiStatus = {
+				status: 'Running on internal port ' + config.port
+			};
+
+			response
+				.status(200)
+				.json(apiStatus);
 		},
 
 		/**
@@ -225,22 +283,38 @@ module.exports = (function (libs) {
 	 */
 	var routes = [{
 		url: '*',
-		actions: [actions.authenticate, actions.secure, actions.require(['General.Access'])],
+		actions: [
+			actions.authenticate,
+			actions.secure,
+			actions.require(['General.Access']),
+			actions.access
+		],
 		method: 'all'
 	}, {
-		url: '/token/generate',
-		actions: [actions.require(['Token.Generate']), actions.generate],
+		url: '/token',
+		actions: [
+			actions.require(['Token.Generate']),
+			actions.generate
+		],
 		method: 'post'
+	}, {
+		url: '/status',
+		actions: [
+			actions.require(['General.Status']),
+			actions.status
+		],
+		method: 'get'
 	}];
 
 	return {
-		actions: actions,
-		routes: routes
+		routes: routes,
+		require: actions.require
 	};
 
 })({
-	jwt: require('jsonwebtoken'),
-	_: require('lodash'),
-	console: require('winston'),
-	Promise: require('bluebird')
+	moment: 	require('moment'),
+	_: 			require('underscore'),
+	jwt: 		require('jsonwebtoken'),
+	Promise: 	require('bluebird/js/release/promise')(),
+	console: 	require(config.path + 'utilities/Console'),
 });

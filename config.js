@@ -6,31 +6,11 @@ module.exports = (function (libs) {
 	};
 
 	config.security = {
-		secret: 'shhhhhhh'
+		secret: 'Hash Oregano Potatoes 1900 Guns and £400 in debt'
 	};
-
-	config.logs = {
-		access: {
-			format: ':remote-addr :date[iso] :status :method :url',
-			stream: libs.fs.createWriteStream(config.path + 'logs/access.log', {flags: 'a'})
-		},
-		operations: {
-			name: 'operations-log',
-			filename: config.path + 'logs/operations.log',
-			maxsize: 10000000,
-			level: 'debug'
-		},
-		errors: {
-			name: 'errors-log',
-			filename: config.path + 'logs/error.log',
-			maxsize: 10000000,
-			level: 'error'
-		}
-	}
 
 	return config;
 
 })({
-	path: require('path'),
-	fs: require('fs')
+	path: 	require('path')
 });

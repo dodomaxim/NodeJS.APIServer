@@ -24,10 +24,11 @@ module.exports = (function (libs) {
 	return function (error, request, response, next) {
 
 		var info = {
-			id: (request.token&&request.token.id?request.token.id:'Unknown ID'),
-			scope: (request.token&&request.token.scope?request.token.scope.join(', '):'Unknown Scope'),
-			ip: request.connection.remoteAddress,
-			url: ['', request.originalUrl, ''].join('')
+			id: (request.token && request.token.id ? request.token.id:'Unknown ID'),
+			scope: (request.token && request.token.scope ? request.token.scope.join(', ') : 'Unknown Scope'),
+			ip: request.get('X-Forwarded-For') || request.connection.remoteAddress,
+			payload: (request.body ? request.body: false),
+			url: [request.method, request.originalUrl].join(' ')
 		};
 
 		/**
@@ -37,22 +38,22 @@ module.exports = (function (libs) {
 		 */
 		var messages = {
 			'DefaultError': [
-				403, 'Not allowed', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				403, 'Not allowed', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			],
 			'SyntaxError': [
-				400, 'Malformed data', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				400, 'Malformed data', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			],
 			'TokenPermissionError': [
-				401, 'Not enough permissions', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				401, 'Not enough permissions', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			],
 			'TokenExpiredError': [
-				401, 'Token has expired', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				401, 'Token has expired', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			],
 			'JsonWebTokenError': [
-				401, 'Token is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				401, 'Token is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			],
 			'InvalidPayloadError': [
-				400, 'Token payload is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using', info.scope
+				400, 'Token or request body payload is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
 			]
 		};
 
@@ -62,18 +63,18 @@ module.exports = (function (libs) {
 			).json({
 				error: messages[error.name][1]
 			});
-			libs.console.log('error', messages[error.name].join(' '))
+			libs.console.error(messages[error.name].join(' '))
 		} else {
 			response.status(
 				messages.DefaultError[0]
 			).json({
 				error: messages.DefaultError[1]
 			});
-			libs.console.log('error', messages.DefaultError.join(' '))
+			libs.console.error(messages.DefaultError.join(' '))
 		}
-		console.info(error);
+		libs.console.error('Details:', error);
 	};
 })({
-	console: require('winston'),
-	_: require('lodash')
+	_: 			require('underscore'),
+	console: 	require(config.path + 'utilities/Console')
 });

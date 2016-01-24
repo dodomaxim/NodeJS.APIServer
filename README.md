@@ -9,5 +9,5 @@ Features
 
 Coming soon
 -----------
-- Database manipulation (MongoDB/MySQL)
 - Better logging
+- Tests

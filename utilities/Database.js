@@ -212,7 +212,7 @@ module.exports = (function (libs) {
 			}
 			return cursor
 				.toArray()
-				.then(internals.process.list);;
+				.then(internals.process.list);
 		}
 	};
 

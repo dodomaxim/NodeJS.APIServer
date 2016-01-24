@@ -306,6 +306,7 @@ module.exports = (function (libs) {
 		generate: function (request, response, next) {
 
 			var scope = internals.scope(request, response, next);
+			request.body.id = request.params.user;
 			if (internals.validate.token(request.body)) {
 				var options = {
 					algorithm: 'HS256',
@@ -327,6 +328,28 @@ module.exports = (function (libs) {
 			} else {
 				next({name: 'InvalidPayloadError'});
 			}
+		},
+
+		/**
+		 * Invalidates a token based on user ID
+		 *
+		 * @param  {Object}   request  Request
+		 * @param  {Object}   response Response
+		 * @param  {Function} next     Next handler
+		 *
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		invalidate: function (request, response, next) {
+
+			var scope = internals.scope(request, response, next);
+			var filters = {
+				user: request.params.user
+			};
+
+			libs.Database.remove('tokens', filters)
+				.then(internals.send.bind(scope));
 		},
 
 		/**
@@ -387,12 +410,19 @@ module.exports = (function (libs) {
 		],
 		method: 'all'
 	}, {
-		url: '/token',
+		url: '/token/:user',
 		actions: [
 			actions.require(['Token.Generate']),
 			actions.generate
 		],
 		method: 'post'
+	}, {
+		url: '/token/:user',
+		actions: [
+			actions.require(['Token.Generate']),
+			actions.invalidate
+		],
+		method: 'delete'
 	}, {
 		url: '/logs/:user',
 		actions: [

@@ -2,7 +2,8 @@ module.exports = (function (libs) {
 
 	var config = {
 		path: libs.path.normalize(__dirname + '/'),
-		port: 10040
+		port: 10040,
+		ip: '127.0.0.1'
 	};
 
 	config.database = {

@@ -20,6 +20,49 @@ module.exports = (function (libs) {
 	var internals = {
 
 		/**
+		 * Create the inital admin account, valid for 10 minutes
+		 * This method is public via exports
+		 * Run: mongoexport -d NodeJSAPI -c tokens -f token --query '{"user":"admin"},{}' --csv
+		 * 
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		admin: function () {
+
+			var options = {
+				algorithm: 'HS256',
+				expiresIn: '10 minutes'
+			};
+			var settings = {
+				id: 'admin',
+				validity: options.expiresIn,
+				scope: ['General.Access', 'General.Status', 'General.Logs', 'Token.Generate']
+			};
+
+			libs.Database.upsert('tokens', {
+				time: 		libs.moment().format(),
+				token: 		libs.jwt.sign(settings, config.security.secret, options),
+				user: 		settings.id,
+				validity: 	options.expiresIn,
+				scope: 		settings.scope,
+				status: 	'enabled',
+				authority: 	settings.id
+			}, {
+				user: settings.id
+			});
+
+			libs.console.save({
+				type: 		'operation',
+				user: 		settings.id,
+				ip: 		config.ip,
+				method: 	'POST',
+				endpoint: 	'/token/admin',
+				payload: 	settings
+			});
+		},
+
+		/**
 		 * Returns the scope for sending a response
 		 * This utility is public as it can be useful to other modules
 		 * 
@@ -53,7 +96,18 @@ module.exports = (function (libs) {
 		 */
 		send: function (data) {
 
-			this.response.status(200).json(data);
+			if (data.hasOwnProperty('error') && libs._.isObject(data.error)) {
+				this.response
+					.status(data.error.status)
+					.json({
+						code: data.error.code,
+						message: data.error.message
+					});
+			} else {
+				this.response
+					.status(200)
+					.json(data);
+			}
 		},
 
 		/**
@@ -106,11 +160,7 @@ module.exports = (function (libs) {
 			 */
 			payload: function (body) {
 
-				try {
-					return libs._.isObject(body) || libs._.isEmpty(body);
-				} catch (error) {
-					return false;
-				}
+				return libs._.isObject(body) || libs._.isEmpty(body);
 			}
 		},
 
@@ -233,15 +283,18 @@ module.exports = (function (libs) {
 				token: 		request.get('authorization'),
 				method: 	request.method,
 				endpoint: 	request.originalUrl,
-				payload: 	JSON.stringify(request.body)
+				payload: 	request.body
 			};
 
-			libs.Database.upsert('logs', log);
+			var filtered = ['/logs'];
+
+			if (filtered.indexOf(request.path) === -1) {
+				libs.console.save(log);
+			}
 			libs.console.log(
-				log.time, log.user,
-				'(ip: ' + log.ip + ')',
+				log.time, log.user, '(ip: ' + log.ip + ')',
 				log.method, log.endpoint,
-				'with payload: ', log.payload
+				'with payload: ', JSON.stringify(log.payload)
 			);
 			next();
 		},
@@ -367,12 +420,15 @@ module.exports = (function (libs) {
 
 			var scope = internals.scope(request, response, next);
 
-			var filters = {
-				user: request.params.user,
-			};
+			var filters = {};
 			var sort = {
 				time: -1
 			};
+
+			if (libs._.isEmpty(request.query) === false) {
+				filters = libs._.extend(filters, request.query);
+			}
+
 			libs.Database.list('logs', filters, sort)
 				.then(internals.send.bind(scope));
 		},
@@ -424,7 +480,7 @@ module.exports = (function (libs) {
 		],
 		method: 'delete'
 	}, {
-		url: '/logs/:user',
+		url: '/logs',
 		actions: [
 			actions.require(['General.Logs']),
 			actions.logs
@@ -436,6 +492,7 @@ module.exports = (function (libs) {
 		routes: routes,
 		require: actions.require,
 		respond: internals.send,
+		admin: internals.admin,
 		scope: internals.scope
 	};
 
@@ -445,5 +502,5 @@ module.exports = (function (libs) {
 	jwt: 		require('jsonwebtoken'),
 	Promise: 	require('bluebird/js/release/promise')(),
 	console: 	require(config.path + 'utilities/Console'),
-	Database: 	require(config.path + 'utilities/Database'),
+	Database: 	require(config.path + 'utilities/Database')
 });

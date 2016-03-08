@@ -37,44 +37,45 @@ module.exports = (function (libs) {
 		 * @type {Object}
 		 */
 		var messages = {
-			'DefaultError': [
-				403, 'Not allowed', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			],
-			'SyntaxError': [
-				400, 'Malformed data', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			],
-			'TokenPermissionError': [
-				401, 'Not enough permissions', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			],
-			'TokenExpiredError': [
-				401, 'Token has expired', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			],
-			'JsonWebTokenError': [
-				401, 'Token is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			],
-			'InvalidPayloadError': [
-				400, 'Token or request body payload is invalid', info.url, 'accessed by', info.id, 'from', info.ip, 'using:', info.scope, 'and payload:', info.payload
-			]
+			'DefaultError': 		{ code:100, message:'Not allowed' },
+			'SyntaxError': 			{ code:101, message:'Malformed data' },
+			'TokenPermissionError': { code:102, message:'Not enough permissions' },
+			'TokenExpiredError': 	{ code:103, message:'Token has expired' },
+			'JsonWebTokenError': 	{ code:104, message:'Token is invalid' },
+			'InvalidPayloadError': 	{ code:105, message:'Token or request body payload is invalid' }
+		};
+
+		var result = {
+			status: 403,
+			code: messages.DefaultError.code,
+			message: messages.DefaultError.message
 		};
 
 		if (messages.hasOwnProperty(error.name)) {
-			response.status(
-				messages[error.name][0]
-			).json({
-				error: messages[error.name][1]
-			});
-			libs.console.error(messages[error.name].join(' '))
-		} else {
-			response.status(
-				messages.DefaultError[0]
-			).json({
-				error: messages.DefaultError[1]
-			});
-			libs.console.error(messages.DefaultError.join(' '))
+			result.code = messages[error.name].code;
+			result.message = messages[error.name].message;
 		}
+
+		var log = {
+			type: 		'error',
+			time: 		libs.moment().format(),
+			user: 		info.id,
+			ip: 		request.get('X-Forwarded-For'),
+			token: 		request.get('authorization'),
+			method: 	request.method,
+			endpoint: 	request.originalUrl,
+			payload: 	request.body,
+			info: 		{ error: error.name, message: error.message }
+		};
+
+		libs.Database.upsert('logs', log);
+
+		Security.respond.call(Security.scope(request, response, next), {error: result});
 		libs.console.error('Details:', error);
 	};
 })({
 	_: 			require('underscore'),
-	console: 	require(config.path + 'utilities/Console')
+	moment: 	require('moment'),
+	console: 	require(config.path + 'utilities/Console'),
+	Database: 	require(config.path + 'utilities/Database')
 });

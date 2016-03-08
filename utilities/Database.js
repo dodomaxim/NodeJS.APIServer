@@ -37,10 +37,8 @@ module.exports = (function (libs) {
 
 			if (!error) {
 				internals.database = database;
-				libs.console.log('Connected to the database successfully');
 				resolve();
 			} else {
-				libs.console.error('Failed to connect to the database');
 				reject(error);
 			}
 		},
@@ -222,6 +220,5 @@ module.exports = (function (libs) {
 })({
 	mongo: 		require('mongodb'),
 	_: 			require('underscore'),
-	Promise: 	require('bluebird/js/release/promise')(),
-	console: 	require(config.path + 'utilities/Console'),
+	Promise: 	require('bluebird/js/release/promise')()
 });

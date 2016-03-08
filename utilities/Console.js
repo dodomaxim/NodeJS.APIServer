@@ -11,6 +11,24 @@ module.exports = (function (libs) {
 	 */
 	var api = {
 
+		save: function (entry, info) {
+
+			entry = entry || {};
+			var log = {
+				time: 		libs.moment().format(),
+				type: 		entry.type 		|| 'operation',
+				user: 		entry.user 		|| '',
+				ip: 		entry.ip 		|| '',
+				token: 		entry.token 	|| '',
+				method: 	entry.method 	|| '',
+				endpoint: 	entry.endpoint 	|| '',
+				payload: 	entry.payload 	|| '',
+				info: 		info 			|| ''
+			};
+
+			libs.Database.upsert('logs', log);
+		},
+
 		/**
 		 * Log regular actions
 		 * 
@@ -50,4 +68,7 @@ module.exports = (function (libs) {
 
 	return api;
 
-})({});
+})({
+	moment: 	require('moment'),
+	Database: 	require(config.path + 'utilities/Database')
+});

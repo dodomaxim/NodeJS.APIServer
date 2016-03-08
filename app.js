@@ -58,7 +58,7 @@ Security = require(config.path + 'controllers/SecurityController');
 			application: function () {
 
 				internals.app = libs.express();
-				internals.app.listen(config.port, '127.0.0.1');
+				internals.app.listen(config.port, config.ip);
 				internals.app.disable('x-powered-by');
 				internals.app.disable('etag');
 				internals.app.use(libs.bodyParser.json());
@@ -111,6 +111,7 @@ Security = require(config.path + 'controllers/SecurityController');
 	libs.Database.connect(config.database.url)
 		.then(internals.setup.application.bind(this, internals.app))
 		.then(internals.setup.routes.bind(this, Security.routes))
+		.then(Security.admin)
 		.then(internals.setup.errorHandlers);
 
 	libs.console.info('Application started on port', config.port);

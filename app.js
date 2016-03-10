@@ -17,6 +17,15 @@ config = require('./config.js');
 Security = require(config.path + 'controllers/SecurityController');
 
 /**
+ * Make Errors global
+ * 
+ * @type {Object}
+ *
+ * @public
+ */
+Errors = require(config.path + 'utilities/Errors');
+
+/**
  * Application starting point
  * 
  * @param  {Object} libs Libraries used by this module

@@ -31,32 +31,16 @@ module.exports = (function (libs) {
 			url: [request.method, request.originalUrl].join(' ')
 		};
 
-		/**
-		 * Messages based on error types
-		 * 
-		 * @type {Object}
-		 */
-		var messages = {
-			'DefaultError': 		{ status: 400, code: 100, message: 'Not allowed' },
-			'SyntaxError': 			{ status: 400, code: 101, message: 'Malformed data' },
-			'TokenPermissionError': { status: 401, code: 102, message: 'Not enough permissions' },
-			'TokenExpiredError': 	{ status: 401, code: 103, message: 'Token has expired' },
-			'JsonWebTokenError': 	{ status: 401, code: 104, message: 'Token is invalid' },
-			'InvalidPayloadError': 	{ status: 400, code: 105, message: 'Token or request body payload is invalid' },
-			'NoDataAvailableError': { status: 400, code: 106, message: 'No data matches given filters' },
-			'NothingToRemoveError': { status: 409, code: 107, message: 'Nothing to remove' }
-		};
-
 		var result = {
-			status: messages.DefaultError.status,
-			code: messages.DefaultError.code,
-			message: messages.DefaultError.message
+			status: Errors.DefaultError.status,
+			code: Errors.DefaultError.code,
+			message: Errors.DefaultError.message
 		};
 
-		if (messages.hasOwnProperty(error.name)) {
-			result.status = messages[error.name].status;
-			result.code = messages[error.name].code;
-			result.message = messages[error.name].message;
+		if (Errors.hasOwnProperty(error.name)) {
+			result.status = Errors[error.name].status;
+			result.code = Errors[error.name].code;
+			result.message = Errors[error.name].message;
 		}
 
 		var log = {

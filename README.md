@@ -5,9 +5,9 @@ Features
 --------
 - JSON Web Tokens protected endpoints
 - Permission requirements for each endpoint
-- Access logs
+- Access & error logs
+- Analytics (in progress)
 
 Coming soon
 -----------
-- Better logging
 - Tests

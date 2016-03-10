@@ -65,7 +65,7 @@ module.exports = (function (libs) {
  					return internals.omit(mongoResponse.value);
  				}
  				return {
- 					error: { status: 400, code: 100, message: mongoResponse.lastErrorObject }
+ 					error: Errors.spawn(400, 107, mongoResponse.lastErrorObject)
  				};
 			},
 
@@ -103,7 +103,7 @@ module.exports = (function (libs) {
 					}
 				}
 				return {
-					error: { status: 409, code: 107, message: 'Nothing to remove' }
+					error: Errors.NothingToRemoveError
 				}
 			}
 		}
@@ -204,7 +204,9 @@ module.exports = (function (libs) {
 		 */
 		list: function (collection, filters, sort) {
 
-			var cursor = internals.database.collection(collection).find(filters || {});
+			var cursor = internals.database.collection(collection)
+				.find(filters || {});
+
 			if (sort) {
 				cursor.sort(sort)
 			}

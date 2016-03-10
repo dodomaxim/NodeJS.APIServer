@@ -160,12 +160,8 @@ module.exports = (function (libs) {
 
 			if (filters) {
 				return internals.database.collection(collection)
-					.findAndModify(
-						filters,
-						sort,
-						operation,
-						options
-					).then(internals.process.upsert);
+					.findAndModify(filters, sort, operation, options)
+					.then(internals.process.upsert);
 			} else {
 				return internals.database.collection(collection)
 					.insert(data)

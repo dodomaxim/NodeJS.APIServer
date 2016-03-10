@@ -9,7 +9,13 @@
  */
 module.exports = (function (libs) {
 
-	var errors = {
+	/**
+	 * Public API exposed by this module
+	 * 
+	 * @type {Object}
+	 */
+	var api = {
+
 		DefaultError:			{ status: 400, code: 100, message: 'Not allowed' },
 		SyntaxError:			{ status: 400, code: 101, message: 'Malformed data' },
 		TokenPermissionError:	{ status: 401, code: 102, message: 'Not enough permissions' },
@@ -38,6 +44,6 @@ module.exports = (function (libs) {
 		}
 	};
 
-	return errors;
+	return api;
 
 })({});

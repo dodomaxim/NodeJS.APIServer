@@ -65,7 +65,7 @@ module.exports = (function (libs) {
  					return internals.omit(mongoResponse.value);
  				}
  				return {
- 					error: Errors.spawn(400, 107, mongoResponse.lastErrorObject)
+ 					error: Errors.spawn(400, 100, mongoResponse.lastErrorObject)
  				};
 			},
 
@@ -220,7 +220,7 @@ module.exports = (function (libs) {
 	return api;
 
 })({
-	mongo: 		require('mongodb'),
-	_: 			require('underscore'),
-	Promise: 	require('bluebird/js/release/promise')()
+	mongo:		require('mongodb'),
+	_:			require('underscore'),
+	Promise:	require('bluebird/js/release/promise')()
 });

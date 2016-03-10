@@ -44,15 +44,15 @@ module.exports = (function (libs) {
 		}
 
 		var log = {
-			type: 		'error',
-			time: 		libs.moment().format(),
-			user: 		info.id,
-			ip: 		request.get('X-Forwarded-For'),
-			token: 		request.get('authorization'),
-			method: 	request.method,
-			endpoint: 	request.originalUrl,
-			payload: 	request.body,
-			info: 		{ error: error.name, message: error.message }
+			type:		'error',
+			time:		libs.moment().format(),
+			user:		info.id,
+			ip:			request.get('X-Forwarded-For'),
+			token:		request.get('authorization'),
+			method:		request.method,
+			endpoint:	request.originalUrl,
+			payload:	request.body,
+			info:		{ error: error.name, message: error.message }
 		};
 
 		libs.Database.upsert('logs', log);
@@ -63,8 +63,8 @@ module.exports = (function (libs) {
 		libs.console.error('Details:', error);
 	};
 })({
-	_: 			require('underscore'),
-	moment: 	require('moment'),
-	console: 	require(config.path + 'utilities/Console'),
-	Database: 	require(config.path + 'utilities/Database')
+	_:			require('underscore'),
+	moment:		require('moment'),
+	console:	require(config.path + 'utilities/Console'),
+	Database:	require(config.path + 'utilities/Database')
 });

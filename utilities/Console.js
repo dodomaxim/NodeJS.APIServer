@@ -15,15 +15,15 @@ module.exports = (function (libs) {
 
 			entry = entry || {};
 			var log = {
-				time: 		libs.moment().format(),
-				type: 		entry.type 		|| 'operation',
-				user: 		entry.user 		|| '',
-				ip: 		entry.ip 		|| '',
-				token: 		entry.token 	|| '',
-				method: 	entry.method 	|| '',
-				endpoint: 	entry.endpoint 	|| '',
-				payload: 	entry.payload 	|| '',
-				info: 		info 			|| ''
+				time:		libs.moment().format(),
+				type:		entry.typ		|| 'operation',
+				user:		entry.user		|| '',
+				ip:			entry.ip		|| '',
+				token:		entry.token		|| '',
+				method:		entry.method	|| '',
+				endpoint:	entry.endpoint	|| '',
+				payload:	entry.payload	|| '',
+				info:		info 			|| ''
 			};
 
 			libs.Database.upsert('logs', log);

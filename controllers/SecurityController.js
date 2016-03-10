@@ -41,13 +41,13 @@ module.exports = (function (libs) {
 			};
 
 			libs.Database.upsert('tokens', {
-				time: 		libs.moment().format(),
-				token: 		libs.jwt.sign(settings, config.security.secret, options),
-				user: 		settings.id,
-				validity: 	options.expiresIn,
-				scope: 		settings.scope,
-				status: 	'enabled',
-				authority: 	settings.id
+				time:		libs.moment().format(),
+				token:		libs.jwt.sign(settings, config.security.secret, options),
+				user:		settings.id,
+				validity:	options.expiresIn,
+				scope:		settings.scope,
+				status:		'enabled',
+				authority:	settings.id
 			}, {
 				user: settings.id
 			});
@@ -181,7 +181,7 @@ module.exports = (function (libs) {
 				this.request.token = token;
 				this.next();
 			} else {
-				this.next({name: 'JsonWebTokenError'})
+				this.next({name: 'JsonWebTokenError'});
 			}
 		},
 
@@ -382,13 +382,13 @@ module.exports = (function (libs) {
 				};
 				var token = libs.jwt.sign(request.body, config.security.secret, options);
 				libs.Database.upsert('tokens', {
-					time: 		libs.moment().format(),
-					token: 		token,
-					user: 		request.body.id,
-					validity: 	options.expiresIn,
-					scope: 		request.body.scope,
-					status: 	'enabled',
-					authority: 	request.token.id
+					time:		libs.moment().format(),
+					token:		token,
+					user:		request.body.id,
+					validity:	options.expiresIn,
+					scope:		request.body.scope,
+					status:		'enabled',
+					authority:	request.token.id
 				}, {
 					user: request.body.id
 				});
@@ -539,11 +539,11 @@ module.exports = (function (libs) {
 	};
 
 })({
-	moment: 	require('moment'),
-	_: 			require('underscore'),
-	jwt: 		require('jsonwebtoken'),
-	analytics: 	require('universal-analytics'),
-	Promise: 	require('bluebird/js/release/promise')(),
-	console: 	require(config.path + 'utilities/Console'),
-	Database: 	require(config.path + 'utilities/Database')
+	moment:		require('moment'),
+	_:			require('underscore'),
+	jwt:		require('jsonwebtoken'),
+	analytics:	require('universal-analytics'),
+	Promise:	require('bluebird/js/release/promise')(),
+	console:	require(config.path + 'utilities/Console'),
+	Database:	require(config.path + 'utilities/Database')
 });

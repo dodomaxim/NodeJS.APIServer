@@ -10,6 +10,8 @@ module.exports = (function (libs) {
 		url: 'mongodb://localhost:27017/NodeJSAPI'
 	};
 
+	config.analytics = 'UA-74887914-2';
+
 	config.security = {
 		secret: 'Hash Oregano Potatoes 1900 Guns and £400 in debt'
 	};

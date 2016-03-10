@@ -20,7 +20,7 @@ module.exports = (function (libs) {
 	var internals = {
 
 		/**
-		 * Create the inital admin account, valid for 10 minutes
+		 * Create the inital admin account, valid for 4 minutes
 		 * This method is public via exports
 		 * Run: mongoexport -d NodeJSAPI -c tokens -f token --query '{"user":"admin"},{}' --csv
 		 * 
@@ -32,12 +32,12 @@ module.exports = (function (libs) {
 
 			var options = {
 				algorithm: 'HS256',
-				expiresIn: '10 minutes'
+				expiresIn: '4 minutes'
 			};
 			var settings = {
 				id: 'admin',
 				validity: options.expiresIn,
-				scope: ['General.Access', 'General.Status', 'General.Logs', 'Token.Generate']
+				scope: ['General.Access', 'General.Logs', 'Tokens.Generate']
 			};
 
 			libs.Database.upsert('tokens', {
@@ -94,7 +94,7 @@ module.exports = (function (libs) {
 		 *
 		 * @public
 		 */
-		send: function (data) {
+		respond: function (data) {
 
 			if (data.hasOwnProperty('error') && libs._.isObject(data.error)) {
 				this.response
@@ -105,7 +105,7 @@ module.exports = (function (libs) {
 					});
 			} else {
 				this.response
-					.status(200)
+					.status(this.request.status)
 					.json(data);
 			}
 		},
@@ -275,6 +275,11 @@ module.exports = (function (libs) {
 		 */
 		access: function (request, response, next) {
 
+			// Default status code when providing a successful
+			// server response to this request. Can/should be
+			// overridden as needed
+			request.status = 200;
+
 			var log = {
 				type: 		'request',
 				time: 		libs.moment().format(),
@@ -286,9 +291,15 @@ module.exports = (function (libs) {
 				payload: 	request.body
 			};
 
-			var filtered = ['/logs'];
+			request.analytics.event({
+				eventCategory: 	log.endpoint,
+				eventAction: 	log.method,
+				eventLabel: 	log.user
+			}).send();
 
-			if (filtered.indexOf(request.path) === -1) {
+			var filteredPaths = ['/logs'];
+
+			if (filteredPaths.indexOf(request.path) === -1) {
 				libs.console.save(log);
 			}
 			libs.console.log(
@@ -334,6 +345,10 @@ module.exports = (function (libs) {
 		 */
 		authenticate: function (request, response, next) {
 
+			request.analytics = libs.analytics(config.analytics, request.get('authorization'), {
+				strictCidFormat: false
+			});
+
 			var scope = internals.scope(request, response, next);
 			if (internals.validate.tokenFormat.test(request.get('authorization'))) {
 				request.tokenString = libs._.last(request.get('authorization').split(' ')) || '';
@@ -377,7 +392,9 @@ module.exports = (function (libs) {
 				}, {
 					user: request.body.id
 				});
-				internals.send.call(scope, {token: token});
+
+				request.status = 201;
+				internals.respond.call(scope, {token: token});
 			} else {
 				next({name: 'InvalidPayloadError'});
 			}
@@ -402,7 +419,25 @@ module.exports = (function (libs) {
 			};
 
 			libs.Database.remove('tokens', filters)
-				.then(internals.send.bind(scope));
+				.then(internals.respond.bind(scope));
+		},
+
+		/**
+		 * Shows all token entries
+		 *
+		 * @param  {Object}   request  Request
+		 * @param  {Object}   response Response
+		 * @param  {Function} next     Next handler
+		 *
+		 * @return {void}
+		 *
+		 * @public
+		 */
+		list: function (request, response, next) {
+
+			var scope = internals.scope(request, response, next);
+			libs.Database.list('tokens')
+				.then(internals.respond.bind(scope));
 		},
 
 		/**
@@ -430,7 +465,7 @@ module.exports = (function (libs) {
 			}
 
 			libs.Database.list('logs', filters, sort)
-				.then(internals.send.bind(scope));
+				.then(internals.respond.bind(scope));
 		},
 
 		/**
@@ -466,19 +501,26 @@ module.exports = (function (libs) {
 		],
 		method: 'all'
 	}, {
-		url: '/token/:user',
+		url: '/tokens/:user',
 		actions: [
-			actions.require(['Token.Generate']),
+			actions.require(['Tokens.Generate']),
 			actions.generate
 		],
 		method: 'post'
 	}, {
-		url: '/token/:user',
+		url: '/tokens/:user',
 		actions: [
-			actions.require(['Token.Generate']),
+			actions.require(['Tokens.Generate']),
 			actions.invalidate
 		],
 		method: 'delete'
+	}, {
+		url: '/tokens',
+		actions: [
+			actions.require(['Tokens.Generate', 'Tokens.List']),
+			actions.list
+		],
+		method: 'get'
 	}, {
 		url: '/logs',
 		actions: [
@@ -491,7 +533,7 @@ module.exports = (function (libs) {
 	return {
 		routes: routes,
 		require: actions.require,
-		respond: internals.send,
+		respond: internals.respond,
 		admin: internals.admin,
 		scope: internals.scope
 	};
@@ -500,6 +542,7 @@ module.exports = (function (libs) {
 	moment: 	require('moment'),
 	_: 			require('underscore'),
 	jwt: 		require('jsonwebtoken'),
+	analytics: 	require('universal-analytics'),
 	Promise: 	require('bluebird/js/release/promise')(),
 	console: 	require(config.path + 'utilities/Console'),
 	Database: 	require(config.path + 'utilities/Database')

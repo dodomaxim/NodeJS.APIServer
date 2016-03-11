@@ -16,7 +16,7 @@ module.exports = (function (libs) {
 			entry = entry || {};
 			var log = {
 				time:		libs.moment().format(),
-				type:		entry.typ		|| 'operation',
+				type:		entry.type		|| 'operation',
 				user:		entry.user		|| '',
 				ip:			entry.ip		|| '',
 				token:		entry.token		|| '',

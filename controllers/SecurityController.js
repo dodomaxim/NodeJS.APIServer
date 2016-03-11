@@ -281,20 +281,20 @@ module.exports = (function (libs) {
 			request.status = 200;
 
 			var log = {
-				type: 		'request',
-				time: 		libs.moment().format(),
-				user: 		request.token.id,
-				ip: 		request.get('X-Forwarded-For'),
-				token: 		request.get('authorization'),
-				method: 	request.method,
-				endpoint: 	request.originalUrl,
-				payload: 	request.body
+				type:		'request',
+				time:		libs.moment().format(),
+				user:		request.token.id,
+				ip:			request.get('X-Forwarded-For'),
+				token:		request.get('authorization'),
+				method:		request.method,
+				endpoint:	request.originalUrl,
+				payload:	request.body
 			};
 
 			request.analytics.event({
-				eventCategory: 	log.endpoint,
-				eventAction: 	log.method,
-				eventLabel: 	log.user
+				eventCategory:	log.endpoint,
+				eventAction:	log.method,
+				eventLabel:		log.user
 			}).send();
 
 			var filteredPaths = ['/logs'];

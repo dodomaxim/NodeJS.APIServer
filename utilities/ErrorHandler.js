@@ -57,7 +57,9 @@ module.exports = (function (libs) {
 
 		libs.Database.upsert('logs', log);
 
-		request.analytics.exception(error.name).send();
+		request.analytics.exception({
+			exceptionDescription: [error.name, result.message].join(': ')
+		}).send();
 
 		Security.respond.call(Security.scope(request, response, next), {error: result});
 		libs.console.error('Details:', error);

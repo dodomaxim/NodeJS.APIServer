@@ -184,7 +184,7 @@ module.exports = (function (libs) {
 			
 			return internals.database.collection(collection)
 				.deleteMany(filters)
-				.then(internals.process.remove);;
+				.then(internals.process.remove);
 		},
 
 		/**

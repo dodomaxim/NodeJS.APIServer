@@ -305,7 +305,7 @@ module.exports = (function (libs) {
 			libs.console.log(
 				log.time, log.user, '(ip: ' + log.ip + ')',
 				log.method, log.endpoint,
-				'with payload: ', JSON.stringify(log.payload)
+				libs._.isEmpty(log.payload) === false ? JSON.stringify(log.payload) : ''
 			);
 			next();
 		},
